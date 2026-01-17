@@ -5,6 +5,10 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
+[programs.devnet]
+inco_lightning = "5sjEbPiqgZrYwR31ahR6Uk9wf5awoX61YGg7jExQSwaj"
+liars_bars = "Cgehp7M8KnHzXC7NNa3C43ECq9DL6GkpERoAFPACSwyF"
+
 [programs.localnet]
 liars_bars = "8SEnxoxd14bJyAb9HQ2mUR3hi4gk8oqty43VVFZCVjTx"
 
@@ -12,7 +16,7 @@ liars_bars = "8SEnxoxd14bJyAb9HQ2mUR3hi4gk8oqty43VVFZCVjTx"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
