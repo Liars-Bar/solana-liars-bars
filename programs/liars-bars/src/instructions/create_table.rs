@@ -8,7 +8,7 @@ use inco_lightning::{
 };
 
 #[derive(Accounts)]
-#[instruction(table_id: u64)]
+#[instruction(table_id: u128)]
 pub struct InitializeTable<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
@@ -28,7 +28,7 @@ pub struct InitializeTable<'info> {
     pub inco_lightning_program: Program<'info, IncoLightning>,
 }
 
-pub fn handler(ctx: Context<InitializeTable>, table_id: u64) -> Result<()> {
+pub fn handler(ctx: Context<InitializeTable>, table_id: u128) -> Result<()> {
     let table = &mut ctx.accounts.table;
 
     let inco = ctx.accounts.inco_lightning_program.to_account_info();
@@ -39,6 +39,7 @@ pub fn handler(ctx: Context<InitializeTable>, table_id: u64) -> Result<()> {
     table.table_id = table_id;
     table.is_open = true;
     table.trun_to_play = 0;
+    table.suffle_trun = 0;
 
     table.deck = vec![vec![false; 13]; 4];
 

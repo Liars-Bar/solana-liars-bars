@@ -24,7 +24,6 @@ custom-panic = []
 anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
 inco-lightning = { version = "0.1.4", features = ["cpi"] }
 
-
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(target_os, values("solana"))',

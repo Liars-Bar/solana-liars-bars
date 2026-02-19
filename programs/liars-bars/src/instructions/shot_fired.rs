@@ -6,7 +6,7 @@ use anchor_lang::prelude::*;
 use inco_lightning::IncoLightning;
 
 #[derive(Accounts)]
-#[instruction(table_id:u64)]
+#[instruction(table_id:u128)]
 pub struct ShotFired<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
@@ -31,7 +31,7 @@ pub struct ShotFired<'info> {
     pub inco_lightning_program: Program<'info, IncoLightning>,
 }
 
-pub fn handler(ctx: Context<ShotFired>, table_id: u64) -> Result<()> {
+pub fn handler(ctx: Context<ShotFired>, table_id: u128) -> Result<()> {
 
     
     Ok(())
