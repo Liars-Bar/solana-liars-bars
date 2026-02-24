@@ -29,6 +29,8 @@ pub struct LiarsTable {
     pub deck: Vec<Vec<bool>>, // the 52 cards deck out of we can draw the cards
     pub trun_to_play: u8, // this tell us which player is now to play
     pub suffle_trun: u8,  // this tell us which players trun to suffle the cards on table
+    #[max_len(5)]
+    pub player_cards_left: Vec<u8>,
 }
 
 #[account]

@@ -5,6 +5,7 @@ use anchor_lang::prelude::*;
 pub mod constant;
 pub mod error;
 pub mod events;
+pub mod helpers;
 pub mod instructions;
 pub mod state;
 use instructions::*;
@@ -51,5 +52,9 @@ pub mod liars_bar_dapp {
         table_id: u128,
     ) -> Result<()> {
         grant_card_access::handler(ctx, table_id)
+    }
+
+    pub fn liars_call(ctx: Context<LiarsCall>, table_id: u128) -> Result<()> {
+        instructions::liars_call::handler(ctx, table_id)
     }
 }

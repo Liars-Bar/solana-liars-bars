@@ -23,6 +23,8 @@ custom-panic = []
 [dependencies]
 anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
 inco-lightning = { version = "0.1.4", features = ["cpi"] }
+constant_time_eq = "=0.3.0"
+blake3 = "=1.5.4"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

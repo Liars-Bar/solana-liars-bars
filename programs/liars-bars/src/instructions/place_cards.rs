@@ -1,7 +1,8 @@
 use crate::{
     constant::INCO_LIGHTNING_ID,
     error::LiarsBarsError,
-    events::{CardPlaced, TableTrun},
+    events::{CardPlaced, RoundStarted, TableTrun},
+    helpers::reset_round,
     state::{LiarsTable, Player},
 };
 use anchor_lang::prelude::*;
@@ -38,41 +39,73 @@ pub fn handler(ctx: Context<PlaceCards>, table_id: u128, picked_indexs: Vec<u8>)
     let table = &mut ctx.accounts.table;
     let player = &mut ctx.accounts.player;
 
-    let mut idx = 0;
-    let mut is_exist = false;
-    for i in 0..table.players.len() {
-        if table.players[i] == ctx.accounts.user.key() {
-            idx = i;
-            is_exist = true;
-            break;
-        }
-    }
-    require!(is_exist, LiarsBarsError::NotEligible);
+    // let mut idx = 0;
+    // let mut is_exist = false;
+
+    let i = table
+        .players
+        .iter()
+        .position(|&p| p == ctx.accounts.user.key());
+    // for i in 0..table.players.len() {
+    //     if table.players[i] == ctx.accounts.user.key() {
+    //         idx = i;
+    //         is_exist = true;
+    //         break;
+    //     }
+    // }
+    // require!(i.is_none(), LiarsBarsError::NotEligible);
+    let mut idx = i.ok_or(LiarsBarsError::NotEligible)?;
+
     require!(
         idx == table.trun_to_play as usize,
         LiarsBarsError::NotYourTrun
     );
 
-    for i in table.cards_on_table.clone() {
-        table.cards_on_table.pop();
+    require!(
+        !table.player_cards_left.is_empty(),
+        LiarsBarsError::NotEligible
+    );
+
+    if player.cards.len() != 0 {
+        if table.cards_on_table.len() > 0 {
+            table.cards_on_table.clear();
+        }
+        let picked_count = picked_indexs.len();
+        for x in picked_indexs {
+            table
+                .cards_on_table
+                .push(player.cards.swap_remove(x as usize));
+        }
+        table.player_cards_left[idx] = table.player_cards_left[idx]
+            .checked_sub(picked_count as u8)
+            .ok_or(LiarsBarsError::NotEligible)?;
+        emit!(CardPlaced {
+            player: ctx.accounts.user.key(),
+            table_id
+        });
     }
 
-    for x in picked_indexs {
-        table
-            .cards_on_table
-            .push(player.cards.swap_remove(x as usize));
+    let st = idx;
+    idx = idx.checked_add(1).unwrap() % table.players.len();
+    while idx != st {
+        if table.player_cards_left[idx] != 0 {
+            break;
+        }
+        idx = idx.checked_add(1).unwrap() % table.players.len();
     }
 
-    table.trun_to_play = (idx as u8 + 1) % table.players.len() as u8;
+    if (st == idx) {
+        let signer_info = ctx.accounts.user.to_account_info();
+        let inco_info = ctx.accounts.inco_lightning_program.to_account_info();
+        reset_round(table, &signer_info, &inco_info)?;
+        emit!(RoundStarted { table_id });
+    }
 
-    emit!(CardPlaced {
-        player: ctx.accounts.user.key(),
-        table_id
-    });
+    table.trun_to_play = idx as u8;
 
     emit!(TableTrun {
         table_id,
-        player: table.players[((idx + 1) % table.players.len()) as usize]
+        player: table.players[idx.checked_add(1).unwrap() % table.players.len()]
     });
 
     Ok(())

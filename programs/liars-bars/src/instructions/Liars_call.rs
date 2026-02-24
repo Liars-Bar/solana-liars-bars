@@ -7,7 +7,8 @@ use inco_lightning::{
 use crate::{
     constant::INCO_LIGHTNING_ID,
     error::LiarsBarsError,
-    events::{EmptyBulletFired, PlayerEleminated},
+    events::{EmptyBulletFired, GameOver, GameWinner, PlayerEleminated, RoundStarted},
+    helpers::reset_round,
     state::{LiarsTable, Player},
 };
 
@@ -66,8 +67,15 @@ pub fn handler(ctx: Context<LiarsCall>, table_id: u128) -> Result<()> {
     let cpi_ctx = CpiContext::new(inco.clone(), operation.clone());
 
     if number_of_cards != match_count {
-        idx = idx - 1 as usize;
+        if (idx == 0) {
+            idx = table.players.len() - 1 as usize;
+        } else {
+            idx = idx - 1 as usize;
+        }
     }
+
+    let signer_info = ctx.accounts.signer.to_account_info();
+    let inco_info = ctx.accounts.inco_lightning_program.to_account_info();
 
     if table.remaining_bullet[idx] == 1 {
         table.remaining_bullet.swap_remove(idx);
@@ -75,20 +83,56 @@ pub fn handler(ctx: Context<LiarsCall>, table_id: u128) -> Result<()> {
             player: table.players[idx],
             table_id
         });
+        table.players.swap_remove(idx);
+        table.remaining_bullet.swap_remove(idx);
+        table.player_cards_left.swap_remove(idx);
+        if table.players.len() == 1 {
+            table.is_over = true;
+            emit!(GameWinner {
+                player: table.players[0],
+                table_id
+            });
+            emit!(GameOver { table_id });
+        } else {
+            // Still >1 player, start new round
+            reset_round(table, &signer_info, &inco)?;
+            emit!(RoundStarted { table_id });
+        }
         return Ok(());
     }
+
     let bullet = e_rand(cpi_ctx, 0)?.0 % 2;
-    if (bullet == 1) {
+    if bullet == 1 {
         table.remaining_bullet.swap_remove(idx);
+        table.remaining_bullet.swap_remove(idx);
+        table.player_cards_left.swap_remove(idx);
         emit!(PlayerEleminated {
             player: table.players[idx],
             table_id
         });
+        table.players.swap_remove(idx);
+        table.remaining_bullet.swap_remove(idx);
+        table.player_cards_left.swap_remove(idx);
+        if table.players.len() == 1 {
+            table.is_over = true;
+            emit!(GameWinner {
+                player: table.players[0],
+                table_id
+            });
+            emit!(GameOver { table_id });
+        } else {
+            // Still >1 player, start new round
+            reset_round(table, &signer_info, &inco)?;
+            emit!(RoundStarted { table_id });
+        }
     } else {
         emit!(EmptyBulletFired {
             player: table.players[idx],
             table_id
         });
+        // Player survived, start new round
+        reset_round(table, &signer_info, &inco)?;
+        emit!(RoundStarted { table_id });
     }
 
     Ok(())

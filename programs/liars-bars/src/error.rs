@@ -12,4 +12,6 @@ pub enum LiarsBarsError {
     NotYourTrun,
     #[msg("You are Not Eligible for this call")]
     NotEligible,
+    #[msg("Need At Least Two Player")]
+    NeedTwoPlayer
 }

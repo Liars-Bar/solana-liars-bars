@@ -60,6 +60,9 @@ pub fn handler<'info>(
 
     require!(idx == table.suffle_trun, LiarsBarsError::NotYourTrunSuffle);
 
+    // Clear cards from previous round before dealing new ones
+    player.cards.clear();
+
     let cpi_ctx = CpiContext::new(inco.clone(), operation.clone());
     let mut random_number: u128 = e_rand(cpi_ctx, 0)?.0;
 
@@ -142,7 +145,7 @@ pub fn handler<'info>(
     }
 
     table.suffle_trun = idx + 1 as u8;
-
+    
     emit!(SuffleCardsForPlayer {
         table_id,
         player: signer_key,

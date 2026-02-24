@@ -1,12 +1,13 @@
+use std::vec;
+
 use anchor_lang::prelude::*;
-use inco_lightning::{
-    cpi::{e_rand, Operation},
-    IncoLightning,
-};
+use inco_lightning::IncoLightning;
 
 use crate::{
     constant::INCO_LIGHTNING_ID,
+    error::LiarsBarsError,
     events::RoundStarted,
+    helpers::reset_round,
     state::{LiarsTable, Player},
 };
 
@@ -37,24 +38,18 @@ pub struct StartRound<'info> {
 }
 
 pub fn handler(ctx: Context<StartRound>, table_id: u128) -> Result<()> {
-    let player = &mut ctx.accounts.players;
     let table = &mut ctx.accounts.table;
-    let inco = ctx.accounts.inco_lightning_program.to_account_info();
-    let operation = Operation {
-        signer: ctx.accounts.signer.to_account_info(),
-    };
+    // TODO: restore to >= 2 for production
+    require!(table.players.len() >= 1, LiarsBarsError::NeedTwoPlayer);
 
     table.is_open = false;
     table.is_over = false;
 
-    table.deck = vec![vec![false; 13]; 4];
-
-    let cpi_ctx = CpiContext::new(inco.clone(), operation.clone());
-    let random_number: u128 = e_rand(cpi_ctx, 0)?.0;
-
-    table.table_card = (random_number % 4) as u8;
-
-    table.suffle_trun = 0;
+    let signer_info = ctx.accounts.signer.to_account_info();
+    let inco_info = ctx.accounts.inco_lightning_program.to_account_info();
+    table.remaining_bullet = vec![6; table.players.len()];
+    table.player_cards_left = vec![5; table.players.len()];
+    reset_round(table, &signer_info, &inco_info)?;
 
     emit!(RoundStarted { table_id });
 

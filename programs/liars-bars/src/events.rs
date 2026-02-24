@@ -52,3 +52,14 @@ pub struct PlayerEleminated {
     pub table_id: u128,
     pub player: Pubkey,
 }
+
+#[event]
+pub struct GameOver {
+    pub table_id: u128,
+}
+
+#[event]
+pub struct GameWinner {
+    pub table_id: u128,
+    pub player: Pubkey,
+}

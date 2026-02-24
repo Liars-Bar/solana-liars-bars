@@ -10,6 +10,7 @@ import {
 } from "@solana/web3.js";
 import { decrypt } from "@inco/solana-sdk";
 import nacl from "tweetnacl";
+import { assert } from "chai";
 
 describe("liars-bars", () => {
   const provider = anchor.AnchorProvider.env();
@@ -30,14 +31,14 @@ describe("liars-bars", () => {
     Keypair.generate(),
   ];
 
-  // async function airdropSol(publicKey: PublicKey, amount: number = 1) {
-  //   const signature = await provider.connection.requestAirdrop(
-  //     publicKey,
-  //     amount * LAMPORTS_PER_SOL,
-  //   );
-  //   await provider.connection.confirmTransaction(signature, "confirmed");
-  //   console.log(`Airdropped ${amount} SOL to ${publicKey.toString()}`);
-  // }
+  async function airdropSol(publicKey: PublicKey, amount: number = 1) {
+    const signature = await provider.connection.requestAirdrop(
+      publicKey,
+      amount * LAMPORTS_PER_SOL,
+    );
+    await provider.connection.confirmTransaction(signature, "confirmed");
+    console.log(`Airdropped ${amount} SOL to ${publicKey.toString()}`);
+  }
 
   // before("initializing-event-listner", async () => {
   //   program.addEventListener("liarsTableCreated", (event, slot, signature) => {
@@ -130,6 +131,39 @@ describe("liars-bars", () => {
 
     console.log(player);
   });
+
+  // it("join-table-player2", async () => {
+  //   const player2 = dummyPlayers[0];
+  //   await airdropSol(player2.publicKey, 2);
+
+  //   const [tableAddress] = PublicKey.findProgramAddressSync(
+  //     [Buffer.from("table"), tableId.toArrayLike(Buffer, "le", 16)],
+  //     program.programId,
+  //   );
+
+  //   const [playerAddress] = PublicKey.findProgramAddressSync(
+  //     [
+  //       Buffer.from("player"),
+  //       tableId.toArrayLike(Buffer, "le", 16),
+  //       player2.publicKey.toBuffer(),
+  //     ],
+  //     program.programId,
+  //   );
+
+  //   const tx = await program.methods
+  //     .joinTable(tableId, "cat")
+  //     .accounts({
+  //       signer: player2.publicKey,
+  //       table: tableAddress,
+  //       player: playerAddress,
+  //       systemProgram: SystemProgram.programId,
+  //       incoLightningProgram: INCO_LIGHTNING_PROGRAM_ID,
+  //     } as any)
+  //     .signers([player2])
+  //     .rpc();
+
+  //   console.log("Player2 join Tx:", tx);
+  // });
 
   it("check table", async () => {
     const [tableAddress] = PublicKey.findProgramAddressSync(
@@ -338,7 +372,7 @@ describe("liars-bars", () => {
     const tx = await program.methods
       .placeCards(tableId, Buffer.from([4, 2]))
       .accounts({
-        signer: provider.wallet.publicKey,
+        user: provider.wallet.publicKey,
         table: tableAddress,
         player: playerAddress,
         systemProgram: SystemProgram.programId,
