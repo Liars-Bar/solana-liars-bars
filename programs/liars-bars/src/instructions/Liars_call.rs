@@ -84,8 +84,8 @@ pub fn handler(ctx: Context<LiarsCall>, table_id: u128) -> Result<()> {
             table_id
         });
         table.players.swap_remove(idx);
-        table.remaining_bullet.swap_remove(idx);
         table.player_cards_left.swap_remove(idx);
+        table.trun_to_play = table.trun_to_play % table.players.len() as u8;
         if table.players.len() == 1 {
             table.is_over = true;
             emit!(GameWinner {
@@ -103,9 +103,6 @@ pub fn handler(ctx: Context<LiarsCall>, table_id: u128) -> Result<()> {
 
     let bullet = e_rand(cpi_ctx, 0)?.0 % 2;
     if bullet == 1 {
-        table.remaining_bullet.swap_remove(idx);
-        table.remaining_bullet.swap_remove(idx);
-        table.player_cards_left.swap_remove(idx);
         emit!(PlayerEleminated {
             player: table.players[idx],
             table_id
@@ -113,6 +110,7 @@ pub fn handler(ctx: Context<LiarsCall>, table_id: u128) -> Result<()> {
         table.players.swap_remove(idx);
         table.remaining_bullet.swap_remove(idx);
         table.player_cards_left.swap_remove(idx);
+        table.trun_to_play = table.trun_to_play % table.players.len() as u8;
         if table.players.len() == 1 {
             table.is_over = true;
             emit!(GameWinner {

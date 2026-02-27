@@ -13,5 +13,7 @@ pub enum LiarsBarsError {
     #[msg("You are Not Eligible for this call")]
     NotEligible,
     #[msg("Need At Least Two Player")]
-    NeedTwoPlayer
+    NeedTwoPlayer,
+    #[msg("All players must shuffle before playing")]
+    ShuffleNotComplete,
 }

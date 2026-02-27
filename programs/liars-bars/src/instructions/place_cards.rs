@@ -16,10 +16,13 @@ pub struct PlaceCards<'info> {
     pub user: Signer<'info>,
 
     #[account(
-        mut,
-        seeds = [b"table", table_id.to_le_bytes().as_ref()],
-        bump,
-    )]
+    mut,
+    seeds = [b"table", table_id.to_le_bytes().as_ref()],
+    bump,
+    realloc = 8 + LiarsTable::INIT_SPACE,  // define this const on your struct
+    realloc::payer = user,
+    realloc::zero = false,
+)]
     pub table: Account<'info, LiarsTable>,
 
     #[account(
@@ -62,8 +65,8 @@ pub fn handler(ctx: Context<PlaceCards>, table_id: u128, picked_indexs: Vec<u8>)
     );
 
     require!(
-        !table.player_cards_left.is_empty(),
-        LiarsBarsError::NotEligible
+        table.suffle_trun as usize >= table.players.len(),
+        LiarsBarsError::ShuffleNotComplete
     );
 
     if player.cards.len() != 0 {
@@ -71,10 +74,16 @@ pub fn handler(ctx: Context<PlaceCards>, table_id: u128, picked_indexs: Vec<u8>)
             table.cards_on_table.clear();
         }
         let picked_count = picked_indexs.len();
-        for x in picked_indexs {
-            table
-                .cards_on_table
-                .push(player.cards.swap_remove(x as usize));
+        // Sort descending so that removing by index doesn't invalidate earlier indices,
+        // and use `remove` (not `swap_remove`) to keep the same order as the client.
+        let mut sorted_indexs = picked_indexs;
+        sorted_indexs.sort_by(|a, b| b.cmp(a));
+        for x in sorted_indexs {
+            require!(
+                (x as usize) < player.cards.len(),
+                LiarsBarsError::NotEligible
+            );
+            table.cards_on_table.push(player.cards.remove(x as usize));
         }
         table.player_cards_left[idx] = table.player_cards_left[idx]
             .checked_sub(picked_count as u8)

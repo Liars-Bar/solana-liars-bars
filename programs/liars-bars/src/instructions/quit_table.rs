@@ -1,8 +1,9 @@
 use anchor_lang::prelude::*;
+use inco_lightning::types::Ebool;
 use inco_lightning::IncoLightning;
 
 use crate::{
-    constant::{ANCHOR_DISCRIMINATOR_SIZE, INCO_LIGHTNING_ID},
+    constant::INCO_LIGHTNING_ID,
     state::{LiarsTable, Player},
 };
 
@@ -39,7 +40,7 @@ pub fn handler(ctx: Context<QuitTable>, table_id: u128) -> Result<()> {
     let playerkey = ctx.accounts.signer.key();
 
     for card in player.cards.clone() {
-        table.deck[card.shape.0 as usize][card.value.0 as usize] = false;
+        table.deck[card.shape.0 as usize].values[card.value.0 as usize] = Ebool::default();
     }
 
     let mut idx = 0;
@@ -52,6 +53,8 @@ pub fn handler(ctx: Context<QuitTable>, table_id: u128) -> Result<()> {
     }
 
     table.players.swap_remove(idx);
+    table.remaining_bullet.swap_remove(idx);
+    table.player_cards_left.swap_remove(idx);
 
     Ok(())
 }

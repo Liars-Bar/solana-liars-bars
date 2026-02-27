@@ -2,10 +2,7 @@ use crate::constant::{ANCHOR_DISCRIMINATOR_SIZE, INCO_LIGHTNING_ID};
 use crate::events::LiarsTableCreated;
 use crate::state::LiarsTable;
 use anchor_lang::prelude::*;
-use inco_lightning::{
-    cpi::{as_ebool, as_euint128, e_eq, e_rand, e_rem, e_shr, Operation},
-    Euint128, IncoLightning,
-};
+use inco_lightning::IncoLightning;
 
 #[derive(Accounts)]
 #[instruction(table_id: u128)]
@@ -31,19 +28,12 @@ pub struct InitializeTable<'info> {
 pub fn handler(ctx: Context<InitializeTable>, table_id: u128) -> Result<()> {
     let table = &mut ctx.accounts.table;
 
-    let inco = ctx.accounts.inco_lightning_program.to_account_info();
-
-    let sign = ctx.accounts.signer.to_account_info();
-    let player = &mut ctx.accounts.signer;
-    // Initialize table state
     table.table_id = table_id;
     table.is_open = true;
     table.trun_to_play = 0;
     table.suffle_trun = 0;
 
-    table.deck = vec![vec![false; 13]; 4];
-
-    emit!(LiarsTableCreated { table_id: table_id });
+    emit!(LiarsTableCreated { table_id });
 
     Ok(())
 }

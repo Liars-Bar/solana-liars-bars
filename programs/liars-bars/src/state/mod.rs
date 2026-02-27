@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use inco_lightning::types::{Ebool, Euint128};
 const EUINT128_SIZE: usize = 32;
-
+const EBOOL_SIZE: usize = 16;
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct Card {
     pub shape: Euint128,
@@ -11,7 +11,14 @@ pub struct Card {
 impl anchor_lang::Space for Card {
     const INIT_SPACE: usize = EUINT128_SIZE + EUINT128_SIZE as usize;
 }
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct DeckRow {
+    pub values: Vec<Ebool>,
+}
 
+impl anchor_lang::Space for DeckRow {
+    const INIT_SPACE: usize = 4 + (13 * EBOOL_SIZE as usize) as usize;
+}
 #[account]
 #[derive(InitSpace)]
 pub struct LiarsTable {
@@ -25,8 +32,8 @@ pub struct LiarsTable {
     pub is_over: bool,
     #[max_len(5)]
     pub players: Vec<Pubkey>, // the pubkey of the players
-    #[max_len(4, 13)]
-    pub deck: Vec<Vec<bool>>, // the 52 cards deck out of we can draw the cards
+    #[max_len(4)]
+    pub deck: Vec<DeckRow>, // the 52 cards deck out of we can draw the cards
     pub trun_to_play: u8, // this tell us which player is now to play
     pub suffle_trun: u8,  // this tell us which players trun to suffle the cards on table
     #[max_len(5)]

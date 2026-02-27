@@ -336,20 +336,19 @@ describe("liars-bars", () => {
     ];
 
     for (let i = 0; i < handles.length; i++) {
-      const result = await decrypt(
-        [handles[i].shape, handles[i].value],
-        {
-          address: wallet.publicKey,
-          signMessage: async (msg: Uint8Array) =>
-            nacl.sign.detached(msg, wallet.secretKey),
-        },
-      );
+      const result = await decrypt([handles[i].shape, handles[i].value], {
+        address: wallet.publicKey,
+        signMessage: async (msg: Uint8Array) =>
+          nacl.sign.detached(msg, wallet.secretKey),
+      });
 
       const shapeIdx = parseInt(result.plaintexts[0]);
       const valueIdx = parseInt(result.plaintexts[1]);
 
       console.log(
-        `Card ${i + 1}: ${values[valueIdx] ?? valueIdx} of ${shapes[shapeIdx] ?? shapeIdx}`,
+        `Card ${i + 1}: ${values[valueIdx] ?? valueIdx} of ${
+          shapes[shapeIdx] ?? shapeIdx
+        }`,
       );
     }
   });
@@ -389,5 +388,20 @@ describe("liars-bars", () => {
     const player = await program.account.player.fetch(playerAddress);
 
     console.log(player);
+  });
+  it("check table size", async () => {
+    const [tableAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("table"), tableId.toArrayLike(Buffer, "le", 16)],
+      program.programId,
+    );
+
+    const accountInfo = await provider.connection.getAccountInfo(tableAddress);
+    console.log("Account allocated bytes:", accountInfo.data.length);
+
+    // Find how much is actually used (trim trailing zeros)
+    let lastNonZero = accountInfo.data.length - 1;
+    while (lastNonZero > 0 && accountInfo.data[lastNonZero] === 0)
+      lastNonZero--;
+    console.log("Bytes actually used:", lastNonZero + 1);
   });
 });

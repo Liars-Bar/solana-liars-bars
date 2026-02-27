@@ -5,6 +5,7 @@ use crate::{
     state::{Card, LiarsTable, Player},
 };
 use anchor_lang::prelude::*;
+use inco_lightning::cpi::as_ebool;
 use inco_lightning::{
     cpi::{allow, as_euint128, e_rand, Allow, Operation},
     program::IncoLightning,
@@ -69,7 +70,7 @@ pub fn handler<'info>(
     let mut available: Vec<(u128, u128)> = Vec::with_capacity(52);
     for shape in 0u128..4 {
         for value in 0u128..13 {
-            if !table.deck[shape as usize][value as usize] {
+            if table.deck[shape as usize].values[value as usize].0 == 0 {
                 available.push((shape, value));
             }
         }
@@ -141,15 +142,22 @@ pub fn handler<'info>(
             shape: encrypted_shape,
             value: encrypted_value,
         });
-        table.deck[shape as usize][value as usize] = true;
+        table.deck[shape as usize].values[value as usize] =
+            as_ebool(CpiContext::new(inco.clone(), operation.clone()), true)?;
     }
 
     table.suffle_trun = idx + 1 as u8;
-    
+
+    let next = if (table.suffle_trun as usize) < table.players.len() {
+        table.players[table.suffle_trun as usize]
+    } else {
+        Pubkey::default()
+    };
+
     emit!(SuffleCardsForPlayer {
         table_id,
         player: signer_key,
-        next: table.players[((idx as usize + 1) % table.players.len())]
+        next,
     });
 
     Ok(())
