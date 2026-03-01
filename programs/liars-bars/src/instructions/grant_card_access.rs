@@ -37,6 +37,44 @@ pub fn handler<'info>(
     let remaining = &ctx.remaining_accounts;
     let mut remaining_idx = 0;
 
+    // Grant access for card_values shape
+    if remaining_idx < remaining.len() {
+        allow(
+            CpiContext::new(
+                inco.clone(),
+                Allow {
+                    allowance_account: remaining[remaining_idx].clone(),
+                    signer: signer_info.clone(),
+                    allowed_address: signer_info.clone(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                },
+            ),
+            player.card_values.shape.0,
+            true,
+            signer_key,
+        )?;
+        remaining_idx += 1 as usize;
+    }
+
+    // Grant access for card_values value
+    if remaining_idx < remaining.len() {
+        allow(
+            CpiContext::new(
+                inco.clone(),
+                Allow {
+                    allowance_account: remaining[remaining_idx].clone(),
+                    signer: signer_info.clone(),
+                    allowed_address: signer_info.clone(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                },
+            ),
+            player.card_values.value.0,
+            true,
+            signer_key,
+        )?;
+        remaining_idx += 1 as usize;
+    }
+
     for card in &player.cards {
         // Grant access for shape
         if remaining_idx < remaining.len() {

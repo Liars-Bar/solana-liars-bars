@@ -82,6 +82,9 @@ pub fn handler<'info>(
     let remaining = &ctx.remaining_accounts;
     let mut remaining_idx = 0;
 
+    let mut values = 0;
+    let mut shapes = 0;
+
     for _ in 0..5 {
         if available.is_empty() {
             break;
@@ -91,7 +94,8 @@ pub fn handler<'info>(
         random_number = random_number.checked_div(52).unwrap();
 
         let (shape, value) = available.swap_remove(card_idx);
-
+        values = (values * 100 as u128) + value as u128;
+        shapes = (shapes * 10 as u128) + shape as u128;
         // Encrypt shape and value
         let encrypted_shape = as_euint128(CpiContext::new(inco.clone(), operation.clone()), shape)?;
         let encrypted_value = as_euint128(CpiContext::new(inco.clone(), operation.clone()), value)?;
@@ -145,6 +149,55 @@ pub fn handler<'info>(
         table.deck[shape as usize].values[value as usize] =
             as_ebool(CpiContext::new(inco.clone(), operation.clone()), true)?;
     }
+
+    let encrypted_shape = as_euint128(CpiContext::new(inco.clone(), operation.clone()), shapes)?;
+
+    if remaining_idx < remaining.len() {
+        let shape_allowance = remaining[remaining_idx].clone();
+        remaining_idx += 1 as usize;
+
+        allow(
+            CpiContext::new(
+                inco.clone(),
+                Allow {
+                    allowance_account: shape_allowance,
+                    signer: signer_info.clone(),
+                    allowed_address: signer_info.clone(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                },
+            ),
+            encrypted_shape.0, // Extract handle from Euint128
+            true,
+            signer_key,
+        )?;
+    }
+
+    let encrypted_value = as_euint128(CpiContext::new(inco.clone(), operation.clone()), values)?;
+
+    if remaining_idx < remaining.len() {
+        let value_allowance = remaining[remaining_idx].clone();
+        remaining_idx += 1 as usize;
+
+        allow(
+            CpiContext::new(
+                inco.clone(),
+                Allow {
+                    allowance_account: value_allowance,
+                    signer: signer_info.clone(),
+                    allowed_address: signer_info.clone(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                },
+            ),
+            encrypted_value.0, // Extract handle from Euint128
+            true,
+            signer_key,
+        )?;
+    }
+
+    player.card_values = Card {
+        shape: encrypted_shape,
+        value: encrypted_value,
+    };
 
     table.suffle_trun = idx + 1 as u8;
 

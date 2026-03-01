@@ -165,17 +165,6 @@ describe("liars-bars", () => {
   //   console.log("Player2 join Tx:", tx);
   // });
 
-  it("check table", async () => {
-    const [tableAddress] = PublicKey.findProgramAddressSync(
-      [Buffer.from("table"), tableId.toArrayLike(Buffer, "le", 16)],
-      program.programId,
-    );
-    const table = await program.account.liarsTable.fetch(tableAddress);
-
-    console.log("table data");
-    console.log(table);
-  });
-
   it("start round", async () => {
     const [tableAddress] = PublicKey.findProgramAddressSync(
       [Buffer.from("table"), tableId.toArrayLike(Buffer, "le", 16)],
@@ -195,6 +184,17 @@ describe("liars-bars", () => {
     console.log("Tx:", tx);
   });
 
+  it("check table", async () => {
+    const [tableAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("table"), tableId.toArrayLike(Buffer, "le", 16)],
+      program.programId,
+    );
+    const table = await program.account.liarsTable.fetch(tableAddress);
+
+    console.log("table data");
+    console.log(table);
+  });
+  
   it("suffle cards", async () => {
     const [tableAddress] = PublicKey.findProgramAddressSync(
       [Buffer.from("table"), tableId.toArrayLike(Buffer, "le", 16)],
@@ -235,9 +235,9 @@ describe("liars-bars", () => {
     );
 
     // 1. Fetch player account to get encrypted card handles
-    const player = await program.account.player.fetch(playerAddress);
+    const player = (await program.account.player.fetch(playerAddress)) as any;
     console.log("Player has", player.cards.length, "encrypted cards");
-
+    console.log(player);
     // Helper: extract u128 handle from Anchor-deserialized Euint128 tuple struct
     function extractHandle(euint128: any): bigint {
       // Anchor deserializes Euint128(u128) as an array-like object
@@ -266,13 +266,33 @@ describe("liars-bars", () => {
       );
     }
 
-    // 2. Derive allowance PDAs for each card's shape and value handles
+    // 2. Derive allowance PDAs for card_values and each card's shape/value handles
     const remainingAccounts: {
       pubkey: PublicKey;
       isSigner: boolean;
       isWritable: boolean;
     }[] = [];
     const handles: { shape: string; value: string }[] = [];
+
+    // card_values allowance PDAs (must come first to match Rust handler order)
+    const cardValuesShapeHandle = extractHandle(player.cardValues.shape);
+    const cardValuesValueHandle = extractHandle(player.cardValues.value);
+    const cardValuesHandle = {
+      shape: cardValuesShapeHandle.toString(),
+      value: cardValuesValueHandle.toString(),
+    };
+    const [cvShapeAllowancePda] = deriveAllowancePda(
+      cardValuesShapeHandle,
+      provider.wallet.publicKey,
+    );
+    const [cvValueAllowancePda] = deriveAllowancePda(
+      cardValuesValueHandle,
+      provider.wallet.publicKey,
+    );
+    remainingAccounts.push(
+      { pubkey: cvShapeAllowancePda, isSigner: false, isWritable: true },
+      { pubkey: cvValueAllowancePda, isSigner: false, isWritable: true },
+    );
 
     for (const card of player.cards) {
       const shapeHandle = extractHandle(card.shape);
@@ -344,13 +364,24 @@ describe("liars-bars", () => {
 
       const shapeIdx = parseInt(result.plaintexts[0]);
       const valueIdx = parseInt(result.plaintexts[1]);
-
+      console.log(i);
+      console.log(shapeIdx);
+      console.log(valueIdx);
       console.log(
         `Card ${i + 1}: ${values[valueIdx] ?? valueIdx} of ${
           shapes[shapeIdx] ?? shapeIdx
         }`,
       );
     }
+    const result = await decrypt(
+      [cardValuesHandle.shape, cardValuesHandle.value],
+      {
+        address: wallet.publicKey,
+        signMessage: async (msg: Uint8Array) =>
+          nacl.sign.detached(msg, wallet.secretKey),
+      },
+    );
+    console.log(result.plaintexts);
   });
 
   it("place cards", async () => {
@@ -389,6 +420,167 @@ describe("liars-bars", () => {
 
     console.log(player);
   });
+
+    it("decrypt cards", async () => {
+    const [playerAddress] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("player"),
+        tableId.toArrayLike(Buffer, "le", 16),
+        provider.wallet.publicKey.toBuffer(),
+      ],
+      program.programId,
+    );
+
+    // 1. Fetch player account to get encrypted card handles
+    const player = (await program.account.player.fetch(playerAddress)) as any;
+    console.log("Player has", player.cards.length, "encrypted cards");
+    console.log(player);
+    // Helper: extract u128 handle from Anchor-deserialized Euint128 tuple struct
+    function extractHandle(euint128: any): bigint {
+      // Anchor deserializes Euint128(u128) as an array-like object
+      // Could be: [BN], { "0": BN }, or BN directly
+      if (euint128 && euint128._bn) return BigInt(euint128.toString());
+      if (euint128 && euint128["0"]) return BigInt(euint128["0"].toString());
+      if (Array.isArray(euint128) && euint128.length > 0)
+        return BigInt(euint128[0].toString());
+      return BigInt(0);
+    }
+
+    // Helper: derive allowance PDA from handle + allowed address
+    function deriveAllowancePda(
+      handle: bigint,
+      allowedAddress: PublicKey,
+    ): [PublicKey, number] {
+      const handleBuffer = Buffer.alloc(16);
+      let h = handle;
+      for (let i = 0; i < 16; i++) {
+        handleBuffer[i] = Number(h & BigInt(0xff));
+        h = h >> BigInt(8);
+      }
+      return PublicKey.findProgramAddressSync(
+        [handleBuffer, allowedAddress.toBuffer()],
+        INCO_LIGHTNING_PROGRAM_ID,
+      );
+    }
+
+    // 2. Derive allowance PDAs for card_values and each card's shape/value handles
+    const remainingAccounts: {
+      pubkey: PublicKey;
+      isSigner: boolean;
+      isWritable: boolean;
+    }[] = [];
+    const handles: { shape: string; value: string }[] = [];
+
+    // card_values allowance PDAs (must come first to match Rust handler order)
+    const cardValuesShapeHandle = extractHandle(player.cardValues.shape);
+    const cardValuesValueHandle = extractHandle(player.cardValues.value);
+    const cardValuesHandle = {
+      shape: cardValuesShapeHandle.toString(),
+      value: cardValuesValueHandle.toString(),
+    };
+    const [cvShapeAllowancePda] = deriveAllowancePda(
+      cardValuesShapeHandle,
+      provider.wallet.publicKey,
+    );
+    const [cvValueAllowancePda] = deriveAllowancePda(
+      cardValuesValueHandle,
+      provider.wallet.publicKey,
+    );
+    remainingAccounts.push(
+      { pubkey: cvShapeAllowancePda, isSigner: false, isWritable: true },
+      { pubkey: cvValueAllowancePda, isSigner: false, isWritable: true },
+    );
+
+    for (const card of player.cards) {
+      const shapeHandle = extractHandle(card.shape);
+      const valueHandle = extractHandle(card.value);
+      handles.push({
+        shape: shapeHandle.toString(),
+        value: valueHandle.toString(),
+      });
+
+      const [shapeAllowancePda] = deriveAllowancePda(
+        shapeHandle,
+        provider.wallet.publicKey,
+      );
+      const [valueAllowancePda] = deriveAllowancePda(
+        valueHandle,
+        provider.wallet.publicKey,
+      );
+
+      remainingAccounts.push(
+        { pubkey: shapeAllowancePda, isSigner: false, isWritable: true },
+        { pubkey: valueAllowancePda, isSigner: false, isWritable: true },
+      );
+    }
+
+    console.log("Card handles:", handles);
+
+    // 3. Call grant_card_access to allow our wallet to decrypt
+    const tx = await program.methods
+      .grantCardAccess(tableId)
+      .accounts({
+        signer: provider.wallet.publicKey,
+        player: playerAddress,
+        incoLightningProgram: INCO_LIGHTNING_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      } as any)
+      .remainingAccounts(remainingAccounts)
+      .rpc();
+
+    console.log("Grant card access Tx:", tx);
+
+    // 4. Wait for TEE to process the allowances
+    await new Promise((r) => setTimeout(r, 3000));
+
+    // 5. Decrypt each card using Inco SDK
+    const wallet = (provider.wallet as anchor.Wallet).payer;
+    const shapes = ["Spades", "Hearts", "Diamonds", "Clubs"];
+    const values = [
+      "A",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "J",
+      "Q",
+      "K",
+    ];
+
+    for (let i = 0; i < handles.length; i++) {
+      const result = await decrypt([handles[i].shape, handles[i].value], {
+        address: wallet.publicKey,
+        signMessage: async (msg: Uint8Array) =>
+          nacl.sign.detached(msg, wallet.secretKey),
+      });
+
+      const shapeIdx = parseInt(result.plaintexts[0]);
+      const valueIdx = parseInt(result.plaintexts[1]);
+      console.log(i);
+      console.log(shapeIdx);
+      console.log(valueIdx);
+      console.log(
+        `Card ${i + 1}: ${values[valueIdx] ?? valueIdx} of ${
+          shapes[shapeIdx] ?? shapeIdx
+        }`,
+      );
+    }
+    const result = await decrypt(
+      [cardValuesHandle.shape, cardValuesHandle.value],
+      {
+        address: wallet.publicKey,
+        signMessage: async (msg: Uint8Array) =>
+          nacl.sign.detached(msg, wallet.secretKey),
+      },
+    );
+    console.log(result.plaintexts);
+  });
+
   it("check table size", async () => {
     const [tableAddress] = PublicKey.findProgramAddressSync(
       [Buffer.from("table"), tableId.toArrayLike(Buffer, "le", 16)],

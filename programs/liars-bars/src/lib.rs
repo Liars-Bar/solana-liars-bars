@@ -35,8 +35,8 @@ pub mod liars_bar_dapp {
         instructions::suffle_cards::handler(ctx, table_id)
     }
 
-    pub fn place_cards(
-        ctx: Context<PlaceCards>,
+    pub fn place_cards<'info>(
+        ctx: Context<'_, '_, '_, 'info, PlaceCards<'info>>,
         table_id: u128,
         picked_indexs: Vec<u8>,
     ) -> Result<()> {

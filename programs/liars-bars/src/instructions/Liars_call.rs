@@ -128,6 +128,7 @@ pub fn handler(ctx: Context<LiarsCall>, table_id: u128) -> Result<()> {
             player: table.players[idx],
             table_id
         });
+        table.remaining_bullet[idx] = table.remaining_bullet[idx] - 1 as u8;
         // Player survived, start new round
         reset_round(table, &signer_info, &inco)?;
         emit!(RoundStarted { table_id });

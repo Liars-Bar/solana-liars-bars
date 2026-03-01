@@ -48,4 +48,5 @@ pub struct Player {
     pub table_id: u128, // this player account of which table
     #[max_len(5)]
     pub cards: Vec<Card>, // the player get 5 cards for which he has to lie and not get catch
+    pub card_values: Card,
 }
